@@ -1,0 +1,4 @@
+--cc:vcc
+--threads:on
+--debugger:native
+--define:useMalloc
