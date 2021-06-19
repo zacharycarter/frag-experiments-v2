@@ -1,5 +1,5 @@
-import os, strutils,
-       allocator, cmdline, string_helpers
+import dynlib, os, strformat,
+       allocator, api, cmdline, os_helpers, string_helpers
 
 when defined(windows):
   import winim/lean
@@ -11,10 +11,45 @@ when defined(windows):
     MessageBoxA(HWND(0), cast[cstring](addr msg[0]), "frag", MB_OK or MB_ICONERROR)
 
 type
+  ValuePtr {.union.} = object
+    value: array[8, char]
+    valuePtr: ptr char
+
+  CommandLineItem = object
+    name: array[64, char]
+    allocatedValue: bool
+    valPtr: ValuePtr
+
   App = object
     alloc: ptr Allocator
+    cmdLineArgs: seq[CommandLineOpt]
+    cmdLineItems: seq[CommandLineItem]
 
-var gApp: App
+var 
+  gApp: App
+
+  defaultName: array[64, char]
+  defaultTitle: array[64, char]
+
+proc commandLineArg(name: cstring; shortName: char; kind: CommandLineArgKind; desc: cstring; valueDesc: cstring) {.cdecl.} =
+  block outer:
+    for opt in gApp.cmdLineArgs:
+      if opt.name == name:
+        assert(false, fmt"Command-line argument '{name}' is already registered")
+        break outer
+    
+    let opt = CommandLineOpt(
+      name: name,
+      shortName: int32(shortName),
+      opType: CommandLineOpType(kind),
+      value: 1,
+      desc: desc,
+      valueDesc: valueDesc,
+    )
+
+    add(gApp.cmdLineArgs, opt)
+
+
 
 proc entry*(): int =
   gApp.alloc = allocMalloc()
@@ -23,49 +58,95 @@ proc entry*(): int =
     profileGPU = 0'i32
     dumpUnusedAssets = 0'i32
     crashDump = 0'i32
-  
-  var 
+
     commandLineOpts = [
-      CommandLineOpt(name: "run", nameShort: int32('r'), opType: clotRequired, flag: nil, value: int32('r'), desc: "Module to run with frag", valueDesc: "filepath"),
+      CommandLineOpt(name: "run", shortName: int32('r'), opType: clotRequired, flag: nil, value: int32('r'), desc: "Module to run with frag", valueDesc: "filepath"),
       optEnd()
     ]
     args = @[getAppFilename()]
+
   add(args, commandLineParams())
 
   let
     argv = allocCStringArray(args) 
     cmdlineCtx = createCommandLineContext(gApp.alloc, int32(paramCount() + 1), argv, commandLineOpts)
+  
+  block outer:
+    block inner:
+      var
+        opt: int32
+        arg: cstring
+        errorMsg: array[512, char]
+        moduleFilepath: string
+        cwd: cstring = nil
+        firstMip = 0'i32
 
-  var
-    opt: int32
-    arg: cstring
-    errorMsg: array[512, char]
-    moduleFilepath: cstring = nil
-    cwd: cstring = nil
-    firstMip = 0'i32
+      opt = next(cmdlineCtx, nil, addr(arg))
+      while opt != -1:
+        case char(opt)
+        of '+':
+          discard snprintf(errorMsg, sizeof(errorMsg), "Got argument without flag: %s", arg)
+          messageBox(errorMsg)
+        of '!':
+          discard snprintf(errorMsg, sizeof(errorMsg), "Invalid use of argument: %s", arg)
+          messageBox(errorMsg)
+          break inner
+        of 'r':
+          moduleFilepath = $arg
+        of 'c':
+          cwd = arg
+        of 'M':
+          firstMip = toInt(arg)
+        else:
+          discard
+        opt = next(cmdlineCtx, nil, addr(arg))
 
-  opt = next(cmdlineCtx, nil, addr(arg))
-  while opt != -1:
-    case char(opt)
-    of '+':
-      discard snprintf(errorMsg, sizeof(errorMsg), "Got argument without flag: %s", arg)
-      messageBox(errorMsg)
-    of '!':
-      discard snprintf(errorMsg, sizeof(errorMsg), "Invalid use of argument: %s", arg)
-      messageBox(errorMsg)
-      quit(QuitFailure)
-    of 'r':
-      moduleFilepath = arg
-    of 'c':
-      cwd = arg
-    of 'M':
-      firstMip = toInt(arg)
-    else:
-      discard
-    opt = next(cmdlineCtx, nil, addr(arg))
+      when not defined(bundleApp):
+        if len(moduleFilepath) == 0:
+          messageBox("Provide a module to run (--run)")
+          break inner
 
-  echo moduleFilepath
+        if not fileExists(moduleFilepath):
+          discard snprintf(errorMsg, sizeof(errorMsg), "Module '%s' does not exist", moduleFilepath)
+          messageBox(errorMsg)
+          break inner
+        
+        let moduleDLL = loadLib(moduleFilepath)
+        if isNil(moduleDLL):
+          discard snprintf(errorMsg, sizeof(errorMsg), "Module '%s' is not a valid shared library: %s", moduleFilepath, dlError())
+          messageBox(errorMsg)
+          break inner
 
-  deallocCStringArray(argv)
+        let moduleConfigProc = cast[ModuleConfigCallback](symAddr(moduleDLL, "configureFragModule"))
+        if isNil(moduleConfigProc):
+          discard snprintf(errorMsg, sizeof(errorMsg), "Symbol 'configureFragModule' not found in module: %s", moduleFilepath)
+          messageBox(errorMsg)
+          break inner
+      else:
+        #TODO: implement
+        discard
 
-  result = QuitSuccess
+      var (_, name, _) = splitFile(moduleFilepath)
+      defaultName = toCharArray[len(defaultName)](name)
+      defaultTitle = toCharArray[len(defaultTitle)](name)
+      # copyMem(addr(defaultName[0]), addr(name[0]), sizeof(defaultName))
+      # copyMem(addr(defaultTitle[0]), addr(name[0]), sizeof(defaultTitle))
+      
+      var conf = Config(
+        appName: defaultName,
+        appTitle: defaultTitle,
+        pluginPath: "",
+      )
+
+      echo conf
+
+      moduleConfigProc(addr(conf), commandLineArg)
+
+      echo conf
+
+      result = QuitSuccess
+      break outer
+
+    destroyCommandLineContext(cmdlineCtx, gApp.alloc)
+    deallocCStringArray(argv)
+    result = QuitFailure

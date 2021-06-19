@@ -12,7 +12,7 @@ type
 
   CommandLineOpt* {.bycopy.} = object
     name*: cstring
-    nameShort*: int32
+    shortName*: int32
     opType*: CommandLineOpType
     flag*: ptr int32
     value*: int32
@@ -22,7 +22,7 @@ type
   CommandLineContext* = getopt_context_t
 
 template optEnd*(): untyped =
-   CommandLineOpt(name: nil, nameShort: 0, opType: clotNoArg, flag: nil, value: 0'i32, desc: nil, valueDesc: nil)
+   CommandLineOpt(name: nil, shortName: 0, opType: clotNoArg, flag: nil, value: 0'i32, desc: nil, valueDesc: nil)
 
 proc createCommandLineContext*(alloc: ptr Allocator; argc: cint; argv: cstringArray; opts: var openArray[CommandLineOpt]): ptr CommandLineContext =
   result = cast[ptr CommandLineContext](malloc(alloc, sizeof(CommandLineContext)))
@@ -42,4 +42,7 @@ proc next*(ctx: ptr CommandLineContext; index: ptr int32; arg: ptr cstring): int
       index[] = ctx.current_index
     if arg != nil:
       arg[] = ctx.current_opt_arg
-  
+
+proc destroyCommandLineContext*(ctx: ptr CommandLineContext; alloc: ptr Allocator) =
+  assert(ctx != nil)
+  free(alloc, ctx)

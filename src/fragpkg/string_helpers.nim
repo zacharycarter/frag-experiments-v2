@@ -1,6 +1,10 @@
-
-
 import ../../thirdparty/stb_sprintf
+
+converter toCString*[N: static[int]](a: var array[N, char]): cstring =
+  result = cast[cstring](addr(a[0]))
+
+converter toCharArray*[N: static[int]](str: var string): array[N, char] =
+  copyMem(addr(result[0]), addr(str[0]), sizeof(result))
 
 proc atoi(str: cstring): int32 {.importc, cdecl, header: "stdlib.h".}
 
