@@ -60,7 +60,11 @@ proc commandLineArg(name: cstring; shortName: char; kind: CommandLineArgKind; de
     add(gApp.cmdLineArgs, opt)
 
 proc init() {.cdecl.} =
-  discard
+  var errorMsg: array[512, char]
+
+  if not core.init(addr(gApp.conf)):
+    messageBox("failed initializing core subsystem, see log for details")
+    quit(QuitFailure)
 
 proc update() {.cdecl.} =
   discard
