@@ -9,7 +9,7 @@
       "type": "cppvsdbg",
       "request": "launch",
       "program": "${workspaceFolder}\\frag.exe",
-      "args": ["--run", "foo.dll"],
+      "args": ["--run", "..\\firestorm\\firestorm.dll"],
       "stopAtEntry": false,
       "cwd": "${workspaceFolder}",
       "environment": [],

@@ -1,4 +1,5 @@
 import dynlib, os, strformat,
+       ../../thirdparty/sokol,
        allocator, api, cmdline, os_helpers, string_helpers
 
 when defined(windows):
@@ -21,7 +22,9 @@ type
     valPtr: ValuePtr
 
   App = object
+    conf: Config
     alloc: ptr Allocator
+    moduleFilepath: array[MaxPath, char]
     cmdLineArgs: seq[CommandLineOpt]
     cmdLineItems: seq[CommandLineItem]
 
@@ -30,6 +33,13 @@ var
 
   defaultName: array[64, char]
   defaultTitle: array[64, char]
+
+template saveConfigStr(cacheStr, str: untyped) =
+  if str != nil:
+    copyMem(addr(cacheStr[0]), addr(str[0]), len(str))
+    str = addr(cacheStr[0])
+  else:
+    str = addr(cacheStr[0])
 
 proc commandLineArg(name: cstring; shortName: char; kind: CommandLineArgKind; desc: cstring; valueDesc: cstring) {.cdecl.} =
   block outer:
@@ -49,6 +59,14 @@ proc commandLineArg(name: cstring; shortName: char; kind: CommandLineArgKind; de
 
     add(gApp.cmdLineArgs, opt)
 
+proc init() {.cdecl.} =
+  discard
+
+proc update() {.cdecl.} =
+  discard
+
+proc shutdown() {.cdecl.} =
+  sapp_quit()
 
 
 proc entry*(): int =
@@ -129,8 +147,6 @@ proc entry*(): int =
       var (_, name, _) = splitFile(moduleFilepath)
       defaultName = toCharArray[len(defaultName)](name)
       defaultTitle = toCharArray[len(defaultTitle)](name)
-      # copyMem(addr(defaultName[0]), addr(name[0]), sizeof(defaultName))
-      # copyMem(addr(defaultTitle[0]), addr(name[0]), sizeof(defaultTitle))
       
       var conf = Config(
         appName: defaultName,
@@ -138,11 +154,40 @@ proc entry*(): int =
         pluginPath: "",
       )
 
-      echo conf
-
       moduleConfigProc(addr(conf), commandLineArg)
 
-      echo conf
+      echo conf.appTitle
+      echo defaultTitle
+
+      saveConfigStr(defaultName, conf.appName)
+      saveConfigStr(defaultTitle, conf.appTitle)
+
+      echo conf.appTitle
+      echo defaultTitle
+
+      when not defined(bundleApp):
+        unloadLib(moduleDLL)
+        destroyCommandLineContext(cmdlineCtx, gApp.alloc)
+        deallocCStringArray(argv)
+
+      echo conf.appTitle
+      echo defaultTitle
+
+      gApp.conf = conf
+      gApp.moduleFilepath = toCharArray[len(gApp.moduleFilepath)](moduleFilepath)
+
+      var appDesc = sapp_desc(
+        init_cb: init,
+        frame_cb: update,
+        cleanup_cb: shutdown,
+        width: 960,
+        height: 540,
+        window_title: "foo",
+        sample_count: 4,
+        swap_interval: 1,
+      )
+
+      sapp_run(addr(appDesc))
 
       result = QuitSuccess
       break outer

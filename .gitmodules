@@ -4,3 +4,6 @@
 [submodule "thirdparty/stb"]
 	path = thirdparty/stb
 	url = git@github.com:nothings/stb.git
+[submodule "thirdparty/sokol"]
+	path = thirdparty/sokol
+	url = git@github.com:floooh/sokol.git

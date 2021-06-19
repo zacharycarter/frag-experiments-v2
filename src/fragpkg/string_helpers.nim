@@ -4,7 +4,10 @@ converter toCString*[N: static[int]](a: var array[N, char]): cstring =
   result = cast[cstring](addr(a[0]))
 
 converter toCharArray*[N: static[int]](str: var string): array[N, char] =
-  copyMem(addr(result[0]), addr(str[0]), sizeof(result))
+  copyMem(addr(result[0]), addr(str[0]), len(str))
+
+converter toCharArray*[N: static[int]](cstr: var cstring): array[N, char] =
+  copyMem(addr(result[0]), addr(cstr), len(cstr))
 
 proc atoi(str: cstring): int32 {.importc, cdecl, header: "stdlib.h".}
 
