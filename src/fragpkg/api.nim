@@ -1,6 +1,13 @@
 import cmdline
 
 type
+  MemoryId* {.size: sizeof(int32).} = enum
+    miCore
+    miGraphics
+    miAudio
+    miVFS
+    miGame
+
   CommandLineArgKind* {.size: sizeof(int32).} = enum
     clakNone
     clakRequired

@@ -1,6 +1,6 @@
 import dynlib, os, strformat,
        ../../thirdparty/sokol,
-       allocator, api, cmdline, os_helpers, string_helpers
+       allocator, api, cmdline, core, os_helpers, string_helpers
 
 when defined(windows):
   import winim/lean
@@ -160,22 +160,13 @@ proc entry*(): int =
 
       moduleConfigProc(addr(conf), commandLineArg)
 
-      echo conf.appTitle
-      echo defaultTitle
-
       saveConfigStr(defaultName, conf.appName)
       saveConfigStr(defaultTitle, conf.appTitle)
-
-      echo conf.appTitle
-      echo defaultTitle
 
       when not defined(bundleApp):
         unloadLib(moduleDLL)
         destroyCommandLineContext(cmdlineCtx, gApp.alloc)
         deallocCStringArray(argv)
-
-      echo conf.appTitle
-      echo defaultTitle
 
       gApp.conf = conf
       gApp.moduleFilepath = toCharArray[len(gApp.moduleFilepath)](moduleFilepath)
