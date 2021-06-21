@@ -14,3 +14,4 @@ bin           = @["frag"]
 requires "nim >= 1.4.8"
 requires "ptr_math >= 0.3.0"
 requires "winim >= 3.6.1"
+requires "https://github.com/disruptek/cps"

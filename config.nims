@@ -2,3 +2,4 @@
 --threads:on
 --debugger:native
 --define:useMalloc
+--gc:arc

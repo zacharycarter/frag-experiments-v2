@@ -46,19 +46,19 @@ template realloc(p: pointer; size: uint): pointer =
     realloc(p, size)
 
 when defined(vcc):
-  proc alignedFree(p: pointer) {.sideeffect, importc:"_aligned_free", header:"<malloc.h>".}
+  proc alignedFree*(p: pointer) {.sideeffect, importc:"_aligned_free", header:"<malloc.h>".}
 else:
   # TODO: Implement
   discard
 
 when defined(vcc):
-  proc alignedMalloc(size, alignment: csize_t): pointer {.sideeffect,importc:"_aligned_malloc", header:"<malloc.h>".}
+  proc alignedMalloc*(size, alignment: csize_t): pointer {.sideeffect,importc:"_aligned_malloc", header:"<malloc.h>".}
 else:
   # TODO: Implement
   discard
 
 when defined(vcc):
-  proc alignedRealloc(p: pointer; size, alignment: csize_t): pointer {.sideeffect,importc:"_aligned_realloc", header:"<malloc.h>".}
+  proc alignedRealloc*(p: pointer; size, alignment: csize_t): pointer {.sideeffect,importc:"_aligned_realloc", header:"<malloc.h>".}
 else:
   # TODO: Implement
   discard
